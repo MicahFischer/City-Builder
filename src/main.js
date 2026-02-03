@@ -254,6 +254,10 @@ let sceneRef;
 let workerTexts = [];
 let labelTexts = [];
 let rotationAngle = 0;
+let tooltipText;
+let zoomLevel = 1;
+const ZOOM_MIN = 0.7;
+const ZOOM_MAX = 1.4;
 
 const isoToScreen = (col, row) => {
   const baseX = (col - row) * (TILE_WIDTH / 2);
@@ -441,6 +445,15 @@ const game = new Phaser.Game({
     create() {
       sceneRef = this;
       graphics = this.add.graphics();
+      tooltipText = this.add
+        .text(0, 0, "", {
+          fontSize: "12px",
+          color: "#1f1a12",
+          backgroundColor: "#fff7ea",
+          padding: { left: 6, right: 6, top: 4, bottom: 4 }
+        })
+        .setDepth(10)
+        .setVisible(false);
       drawGrid();
       let isDragging = false;
       let dragStartX = 0;
@@ -468,6 +481,30 @@ const game = new Phaser.Game({
         }
       });
 
+      this.input.on("pointermove", (pointer) => {
+        if (isDragging) {
+          tooltipText.setVisible(false);
+          return;
+        }
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const { col, row } = pickCell(worldPoint.x, worldPoint.y);
+        if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) {
+          tooltipText.setVisible(false);
+          return;
+        }
+        const index = row * GRID_SIZE + col;
+        const cell = state.grid[index];
+        if (!cell) {
+          tooltipText.setVisible(false);
+          return;
+        }
+        const config = BUILDINGS[cell.type];
+        tooltipText
+          .setText(`${config.label} (${cell.workers}/${MAX_WORKERS_PER_BUILDING})`)
+          .setPosition(pointer.x + 14, pointer.y + 14)
+          .setVisible(true);
+      });
+
       this.input.on("pointerup", (pointer) => {
         if (isDragging) return;
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -475,6 +512,12 @@ const game = new Phaser.Game({
         if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) return;
         const index = row * GRID_SIZE + col;
         selectCell(index);
+      });
+
+      this.input.on("wheel", (_pointer, _over, _dx, dy) => {
+        const direction = dy > 0 ? -1 : 1;
+        zoomLevel = Phaser.Math.Clamp(zoomLevel + direction * 0.1, ZOOM_MIN, ZOOM_MAX);
+        this.cameras.main.setZoom(zoomLevel);
       });
     }
   }
