@@ -264,8 +264,42 @@ const isoToScreen = (col, row) => {
 const screenToIso = (x, y) => {
   const dx = x - GRID_ORIGIN.x;
   const dy = y - GRID_ORIGIN.y;
-  const col = Math.floor((dx / (TILE_WIDTH / 2) + dy / (TILE_HEIGHT / 2)) / 2);
-  const row = Math.floor((dy / (TILE_HEIGHT / 2) - dx / (TILE_WIDTH / 2)) / 2);
+  const colF = (dx / (TILE_WIDTH / 2) + dy / (TILE_HEIGHT / 2)) / 2;
+  const rowF = (dy / (TILE_HEIGHT / 2) - dx / (TILE_WIDTH / 2)) / 2;
+  return { col: Math.round(colF), row: Math.round(rowF) };
+};
+
+const pointInDiamond = (px, py, cx, cy) => {
+  const dx = Math.abs(px - cx);
+  const dy = Math.abs(py - cy);
+  return dx / (TILE_WIDTH / 2) + dy / (TILE_HEIGHT / 2) <= 1;
+};
+
+const pickCell = (x, y) => {
+  const { col, row } = screenToIso(x, y);
+  const candidates = [
+    { col, row },
+    { col: col - 1, row },
+    { col: col + 1, row },
+    { col, row: row - 1 },
+    { col, row: row + 1 }
+  ];
+
+  for (const candidate of candidates) {
+    if (
+      candidate.col < 0 ||
+      candidate.row < 0 ||
+      candidate.col >= GRID_SIZE ||
+      candidate.row >= GRID_SIZE
+    ) {
+      continue;
+    }
+    const center = isoToScreen(candidate.col, candidate.row);
+    if (pointInDiamond(x, y, center.x, center.y)) {
+      return candidate;
+    }
+  }
+
   return { col, row };
 };
 
@@ -397,7 +431,7 @@ const game = new Phaser.Game({
       drawGrid();
       this.input.on("pointerdown", (pointer) => {
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-        const { col, row } = screenToIso(worldPoint.x, worldPoint.y);
+        const { col, row } = pickCell(worldPoint.x, worldPoint.y);
         if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) return;
         const index = row * GRID_SIZE + col;
         selectCell(index);
