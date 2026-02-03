@@ -131,8 +131,8 @@ button {
 }
 
 #game {
-  width: 640px;
-  height: 520px;
+  width: 720px;
+  height: 580px;
 }
 
 .selection {
@@ -166,7 +166,7 @@ button {
   }
 
   #game {
-    width: 420px;
-    height: 420px;
+    width: 460px;
+    height: 460px;
   }
 }

@@ -224,9 +224,9 @@ setInterval(() => {
   cycleEl.textContent = `Next cycle in: ${(remaining / 1000).toFixed(1)}s`;
 }, 200);
 
-const TILE_WIDTH = 64;
-const TILE_HEIGHT = 32;
-const GRID_ORIGIN = { x: 320, y: 110 };
+const TILE_WIDTH = 72;
+const TILE_HEIGHT = 36;
+const GRID_ORIGIN = { x: 360, y: 120 };
 const COLORS = {
   empty: 0xf7f1e6,
   outline: 0xb69769,
@@ -314,8 +314,8 @@ const configLabel = (type) => {
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
-  width: 640,
-  height: 520,
+  width: 720,
+  height: 580,
   parent: "game",
   backgroundColor: "#efe4d2",
   scale: {
