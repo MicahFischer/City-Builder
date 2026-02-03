@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BUILDINGS,
   CYCLE_MS,
@@ -61,11 +61,12 @@ const getProductionTotals = (grid) => {
 export default function App() {
   const [resources, setResources] = useState(STARTING_RESOURCES);
   const [grid, setGrid] = useState(emptyGrid);
-  const [selectedBuild, setSelectedBuild] = useState("farm");
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [workers, setWorkers] = useState(
     Object.fromEntries(WORKER_TYPES.map((type) => [type, 0]))
   );
+  const [nextCycleAt, setNextCycleAt] = useState(Date.now() + CYCLE_MS);
+  const [timeLeftMs, setTimeLeftMs] = useState(CYCLE_MS);
 
   const assignedByType = useMemo(() => getAssignedByType(grid), [grid]);
   const availableWorkers = useMemo(() => {
@@ -78,29 +79,41 @@ export default function App() {
 
   const productionTotals = useMemo(() => getProductionTotals(grid), [grid]);
 
+  const productionRef = useRef(productionTotals);
+
   useEffect(() => {
-    const id = setInterval(() => {
-      setResources((current) => addResources(current, productionTotals));
-    }, CYCLE_MS);
-    return () => clearInterval(id);
+    productionRef.current = productionTotals;
   }, [productionTotals]);
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      setResources((current) => addResources(current, productionRef.current));
+      setNextCycleAt(Date.now() + CYCLE_MS);
+    }, CYCLE_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const remaining = Math.max(0, nextCycleAt - Date.now());
+      setTimeLeftMs(remaining);
+    }, 200);
+    return () => clearInterval(id);
+  }, [nextCycleAt]);
+
   const handleCellClick = (index) => {
-    const cell = grid[index];
-    if (cell) {
-      setSelectedIndex(index);
-      return;
-    }
-    if (!selectedBuild) return;
+    setSelectedIndex(index);
+  };
 
-    const config = BUILDINGS[selectedBuild];
+  const buildOnSelected = (type) => {
+    if (selectedIndex === null) return;
+    if (grid[selectedIndex]) return;
+    const config = BUILDINGS[type];
     if (!canAfford(resources, config.cost)) return;
-
     const nextGrid = [...grid];
-    nextGrid[index] = { type: selectedBuild, workers: 0 };
+    nextGrid[selectedIndex] = { type, workers: 0 };
     setGrid(nextGrid);
     setResources((current) => subtractCost(current, config.cost));
-    setSelectedIndex(index);
   };
 
   const adjustWorkers = (delta) => {
@@ -131,6 +144,7 @@ export default function App() {
   };
 
   const selectedCell = selectedIndex !== null ? grid[selectedIndex] : null;
+  const selectedIsEmpty = selectedIndex !== null && !selectedCell;
 
   return (
     <div className="app">
@@ -139,7 +153,9 @@ export default function App() {
           <h1>City Builder MVP</h1>
           <p>Medieval resource management prototype</p>
         </div>
-        <div className="cycle">Cycle: {CYCLE_MS / 1000}s</div>
+        <div className="cycle">
+          Next cycle in: {(timeLeftMs / 1000).toFixed(1)}s
+        </div>
       </header>
 
       <section className="resources">
@@ -154,27 +170,30 @@ export default function App() {
       <main className="layout">
         <section className="panel">
           <h2>Build</h2>
-          <div className="build-list">
-            {Object.entries(BUILDINGS).map(([key, config]) => {
-              const affordable = canAfford(resources, config.cost);
-              const isActive = selectedBuild === key;
-              return (
-                <button
-                  key={key}
-                  className={`tile-button ${isActive ? "active" : ""}`}
-                  onClick={() => setSelectedBuild(key)}
-                  disabled={!affordable}
-                >
-                  <span>{config.label}</span>
-                  <small>
-                    Cost: {Object.entries(config.cost)
-                      .map(([res, value]) => `${value} ${res}`)
-                      .join(", ")}
-                  </small>
-                </button>
-              );
-            })}
-          </div>
+          {selectedIsEmpty ? (
+            <div className="build-list">
+              {Object.entries(BUILDINGS).map(([key, config]) => {
+                const affordable = canAfford(resources, config.cost);
+                return (
+                  <button
+                    key={key}
+                    className="tile-button"
+                    onClick={() => buildOnSelected(key)}
+                    disabled={!affordable}
+                  >
+                    <span>{config.label}</span>
+                    <small>
+                      Cost: {Object.entries(config.cost)
+                        .map(([res, value]) => `${value} ${res}`)
+                        .join(", ")}
+                    </small>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p>Select an empty tile to see building options.</p>
+          )}
 
           <h2>Hire Workers</h2>
           <div className="worker-list">
@@ -235,7 +254,11 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <p>Select a structure to manage workers.</p>
+            <p>
+              {selectedIsEmpty
+                ? "Choose a building to place on this tile."
+                : "Select a tile to manage it."}
+            </p>
           )}
 
           <h2>Production / Cycle</h2>
