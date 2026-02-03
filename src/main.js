@@ -10,7 +10,11 @@ const BUILDINGS = {
     outputResource: "wheat",
     outputPerWorker: 5,
     cost: { wood: 30, stone: 30 },
-    color: 0xf6f1c6
+    colors: {
+      top: 0xf6f1c6,
+      left: 0xe6dba9,
+      right: 0xd8ca8c
+    }
   },
   quarry: {
     label: "Quarry",
@@ -18,7 +22,11 @@ const BUILDINGS = {
     outputResource: "stone",
     outputPerWorker: 5,
     cost: { wood: 30, wheat: 30 },
-    color: 0xd5d8dd
+    colors: {
+      top: 0xd5d8dd,
+      left: 0xc3c7cf,
+      right: 0xb3b8c2
+    }
   },
   mine: {
     label: "Mine",
@@ -26,7 +34,11 @@ const BUILDINGS = {
     outputResource: "gold",
     outputPerWorker: 5,
     cost: { wood: 30, stone: 30 },
-    color: 0xc5c1b8
+    colors: {
+      top: 0xc5c1b8,
+      left: 0xb0aaa0,
+      right: 0x9e978c
+    }
   },
   lumberyard: {
     label: "Lumberyard",
@@ -34,7 +46,11 @@ const BUILDINGS = {
     outputResource: "wood",
     outputPerWorker: 5,
     cost: { stone: 30, wheat: 30 },
-    color: 0xd8c9a7
+    colors: {
+      top: 0xd8c9a7,
+      left: 0xc7b58f,
+      right: 0xb8a67f
+    }
   }
 };
 
@@ -266,6 +282,52 @@ const drawDiamond = (x, y, fill, stroke, thickness = 2) => {
   graphics.strokePath();
 };
 
+const drawIsoBlock = (x, y, colors, stroke) => {
+  const halfW = TILE_WIDTH / 2;
+  const halfH = TILE_HEIGHT / 2;
+  const height = TILE_HEIGHT;
+
+  // Top
+  graphics.fillStyle(colors.top, 1);
+  graphics.beginPath();
+  graphics.moveTo(x, y - halfH - height);
+  graphics.lineTo(x + halfW, y - height);
+  graphics.lineTo(x, y + halfH - height);
+  graphics.lineTo(x - halfW, y - height);
+  graphics.closePath();
+  graphics.fillPath();
+
+  // Left
+  graphics.fillStyle(colors.left, 1);
+  graphics.beginPath();
+  graphics.moveTo(x - halfW, y - height);
+  graphics.lineTo(x, y + halfH - height);
+  graphics.lineTo(x, y + halfH);
+  graphics.lineTo(x - halfW, y);
+  graphics.closePath();
+  graphics.fillPath();
+
+  // Right
+  graphics.fillStyle(colors.right, 1);
+  graphics.beginPath();
+  graphics.moveTo(x + halfW, y - height);
+  graphics.lineTo(x, y + halfH - height);
+  graphics.lineTo(x, y + halfH);
+  graphics.lineTo(x + halfW, y);
+  graphics.closePath();
+  graphics.fillPath();
+
+  // Outline top
+  graphics.lineStyle(2, stroke, 1);
+  graphics.beginPath();
+  graphics.moveTo(x, y - halfH - height);
+  graphics.lineTo(x + halfW, y - height);
+  graphics.lineTo(x, y + halfH - height);
+  graphics.lineTo(x - halfW, y - height);
+  graphics.closePath();
+  graphics.strokePath();
+};
+
 const clearWorkerTexts = () => {
   workerTexts.forEach((text) => text.destroy());
   workerTexts = [];
@@ -287,11 +349,17 @@ const drawGrid = () => {
       const index = row * GRID_SIZE + col;
       const cell = state.grid[index];
       const { x, y } = isoToScreen(col, row);
-      const fill = cell ? BUILDINGS[cell.type].color : COLORS.empty;
       const isSelected = state.selectedIndex === index;
-      drawDiamond(x, y, fill, isSelected ? COLORS.selected : COLORS.outline);
+      drawDiamond(
+        x,
+        y,
+        COLORS.empty,
+        isSelected ? COLORS.selected : COLORS.outline
+      );
       if (cell) {
-        const label = sceneRef.add.text(x - 10, y - 20, configLabel(cell.type), {
+        const colors = BUILDINGS[cell.type].colors;
+        drawIsoBlock(x, y, colors, COLORS.outline);
+        const label = sceneRef.add.text(x - 8, y - 28, configLabel(cell.type), {
           fontSize: "12px",
           color: "#1f1a12",
           fontStyle: "bold"
