@@ -217,19 +217,7 @@ export default function App() {
           )}
 
           <h2>Workers</h2>
-          <div className="worker-list">
-            {WORKER_TYPES.map((type) => (
-              <div key={type} className="tile-button worker-readout">
-                <span>{type}</span>
-                <small>
-                  Total: {workers[type]} | Available: {availableWorkers[type]}
-                </small>
-              </div>
-            ))}
-            <div className="worker-cost">
-              Hire cost: 20 gold + 20 wheat (via selection)
-            </div>
-          </div>
+          <p>Hire and assign workers from a selected building.</p>
         </section>
 
         <section className="grid">
