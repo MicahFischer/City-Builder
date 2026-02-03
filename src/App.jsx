@@ -138,15 +138,6 @@ export default function App() {
     setGrid(nextGrid);
   };
 
-  const hireWorker = (type) => {
-    if (!canAfford(resources, WORKER_COST)) return;
-    setResources((current) => subtractCost(current, WORKER_COST));
-    setWorkers((current) => ({
-      ...current,
-      [type]: current[type] + 1
-    }));
-  };
-
   const hireAndAssign = () => {
     if (selectedIndex === null) return;
     const cell = grid[selectedIndex];
@@ -225,23 +216,18 @@ export default function App() {
             <p>Select an empty tile to see building options.</p>
           )}
 
-          <h2>Hire Workers</h2>
+          <h2>Workers</h2>
           <div className="worker-list">
             {WORKER_TYPES.map((type) => (
-              <button
-                key={type}
-                className="tile-button"
-                onClick={() => hireWorker(type)}
-                disabled={!canAfford(resources, WORKER_COST)}
-              >
+              <div key={type} className="tile-button worker-readout">
                 <span>{type}</span>
                 <small>
                   Total: {workers[type]} | Available: {availableWorkers[type]}
                 </small>
-              </button>
+              </div>
             ))}
             <div className="worker-cost">
-              Hire cost: 20 gold + 20 wheat
+              Hire cost: 20 gold + 20 wheat (via selection)
             </div>
           </div>
         </section>

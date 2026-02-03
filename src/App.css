@@ -106,6 +106,10 @@
   cursor: not-allowed;
 }
 
+.worker-readout {
+  cursor: default;
+}
+
 .worker-cost {
   font-size: 13px;
   color: #6a543c;
