@@ -1,0 +1,19 @@
+:root {
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  color: #1f1a12;
+  background-color: #f4efe7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #f7f1e6 0%, #efe4d2 55%, #e6d3b6 100%);
+}
+
+button {
+  font-family: inherit;
+}
