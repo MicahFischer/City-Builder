@@ -143,8 +143,34 @@ export default function App() {
     }));
   };
 
+  const hireAndAssign = () => {
+    if (selectedIndex === null) return;
+    const cell = grid[selectedIndex];
+    if (!cell) return;
+    if (cell.workers >= MAX_WORKERS_PER_BUILDING) return;
+    if (!canAfford(resources, WORKER_COST)) return;
+    const workerType = BUILDINGS[cell.type].workerType;
+    setResources((current) => subtractCost(current, WORKER_COST));
+    setWorkers((current) => ({
+      ...current,
+      [workerType]: current[workerType] + 1
+    }));
+    const nextGrid = [...grid];
+    nextGrid[selectedIndex] = { ...cell, workers: cell.workers + 1 };
+    setGrid(nextGrid);
+  };
+
   const selectedCell = selectedIndex !== null ? grid[selectedIndex] : null;
   const selectedIsEmpty = selectedIndex !== null && !selectedCell;
+  const selectedWorkerType = selectedCell
+    ? BUILDINGS[selectedCell.type].workerType
+    : null;
+  const selectedAvailable = selectedWorkerType
+    ? availableWorkers[selectedWorkerType]
+    : 0;
+  const selectedFull = selectedCell
+    ? selectedCell.workers >= MAX_WORKERS_PER_BUILDING
+    : false;
 
   return (
     <div className="app">
@@ -242,15 +268,33 @@ export default function App() {
                 {BUILDINGS[selectedCell.type].label}
               </div>
               <div className="selection-detail">
+                Worker type: {selectedWorkerType}
+              </div>
+              <div className="selection-detail">
                 Workers: {selectedCell.workers} / {MAX_WORKERS_PER_BUILDING}
               </div>
               <div className="selection-detail">
                 Output: {BUILDINGS[selectedCell.type].outputPerWorker} {" "}
                 {BUILDINGS[selectedCell.type].outputResource} per worker
               </div>
+              <div className="selection-detail">
+                Available:{" "}
+                {selectedAvailable}
+              </div>
               <div className="selection-actions">
                 <button onClick={() => adjustWorkers(-1)}>-</button>
-                <button onClick={() => adjustWorkers(1)}>+</button>
+                <button
+                  onClick={() => adjustWorkers(1)}
+                  disabled={selectedFull || selectedAvailable <= 0}
+                >
+                  Assign
+                </button>
+                <button
+                  onClick={hireAndAssign}
+                  disabled={selectedFull || !canAfford(resources, WORKER_COST)}
+                >
+                  Hire + Assign
+                </button>
               </div>
             </div>
           ) : (
