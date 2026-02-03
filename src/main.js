@@ -253,19 +253,32 @@ let graphics;
 let sceneRef;
 let workerTexts = [];
 let labelTexts = [];
+let rotationAngle = 0;
 
 const isoToScreen = (col, row) => {
+  const baseX = (col - row) * (TILE_WIDTH / 2);
+  const baseY = (col + row) * (TILE_HEIGHT / 2);
+  const cos = Math.cos(rotationAngle);
+  const sin = Math.sin(rotationAngle);
+  const rotX = baseX * cos - baseY * sin;
+  const rotY = baseX * sin + baseY * cos;
   return {
-    x: (col - row) * (TILE_WIDTH / 2) + GRID_ORIGIN.x,
-    y: (col + row) * (TILE_HEIGHT / 2) + GRID_ORIGIN.y
+    x: rotX + GRID_ORIGIN.x,
+    y: rotY + GRID_ORIGIN.y
   };
 };
 
 const screenToIso = (x, y) => {
   const dx = x - GRID_ORIGIN.x;
   const dy = y - GRID_ORIGIN.y;
-  const colF = (dx / (TILE_WIDTH / 2) + dy / (TILE_HEIGHT / 2)) / 2;
-  const rowF = (dy / (TILE_HEIGHT / 2) - dx / (TILE_WIDTH / 2)) / 2;
+  const cos = Math.cos(-rotationAngle);
+  const sin = Math.sin(-rotationAngle);
+  const unrotX = dx * cos - dy * sin;
+  const unrotY = dx * sin + dy * cos;
+  const colF =
+    (unrotX / (TILE_WIDTH / 2) + unrotY / (TILE_HEIGHT / 2)) / 2;
+  const rowF =
+    (unrotY / (TILE_HEIGHT / 2) - unrotX / (TILE_WIDTH / 2)) / 2;
   return { col: Math.round(colF), row: Math.round(rowF) };
 };
 
@@ -429,7 +442,34 @@ const game = new Phaser.Game({
       sceneRef = this;
       graphics = this.add.graphics();
       drawGrid();
+      let isDragging = false;
+      let dragStartX = 0;
+      let lastX = 0;
+      const dragThreshold = 6;
+      const rotationSpeed = 0.005;
+
       this.input.on("pointerdown", (pointer) => {
+        isDragging = false;
+        dragStartX = pointer.x;
+        lastX = pointer.x;
+      });
+
+      this.input.on("pointermove", (pointer) => {
+        if (!pointer.isDown) return;
+        const dx = pointer.x - dragStartX;
+        if (!isDragging && Math.abs(dx) > dragThreshold) {
+          isDragging = true;
+        }
+        if (isDragging) {
+          const delta = pointer.x - lastX;
+          rotationAngle += delta * rotationSpeed;
+          lastX = pointer.x;
+          drawGrid();
+        }
+      });
+
+      this.input.on("pointerup", (pointer) => {
+        if (isDragging) return;
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
         const { col, row } = pickCell(worldPoint.x, worldPoint.y);
         if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) return;
