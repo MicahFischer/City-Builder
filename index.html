@@ -6,7 +6,34 @@
     <title>City Builder MVP</title>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div class="app">
+      <header class="header">
+        <div>
+          <h1>City Builder MVP</h1>
+          <p>Medieval resource management prototype</p>
+        </div>
+        <div class="cycle" id="cycle">Next cycle in: 0.0s</div>
+      </header>
+
+      <section class="resources" id="resources"></section>
+
+      <main class="layout">
+        <section class="panel">
+          <h2>Build</h2>
+          <div id="build-panel" class="build-list"></div>
+        </section>
+
+        <section class="grid">
+          <div id="game"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Selection</h2>
+          <div id="selection"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
