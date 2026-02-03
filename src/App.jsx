@@ -102,7 +102,7 @@ export default function App() {
   }, [nextCycleAt]);
 
   const handleCellClick = (index) => {
-    setSelectedIndex(index);
+    setSelectedIndex((current) => (current === index ? null : index));
   };
 
   const buildOnSelected = (type) => {
