@@ -11,10 +11,10 @@ import {
 import "./App.css";
 
 const STARTING_RESOURCES = {
-  wood: 120,
+  wood: 140,
   stone: 60,
-  wheat: 80,
-  gold: 40
+  wheat: 220,
+  gold: 160
 };
 
 const emptyGrid = () => Array.from({ length: GRID_SIZE * GRID_SIZE }, () => null);
@@ -111,9 +111,13 @@ export default function App() {
     const config = BUILDINGS[type];
     if (!canAfford(resources, config.cost)) return;
     const nextGrid = [...grid];
-    nextGrid[selectedIndex] = { type, workers: 0 };
+    nextGrid[selectedIndex] = { type, workers: 1 };
     setGrid(nextGrid);
     setResources((current) => subtractCost(current, config.cost));
+    setWorkers((current) => ({
+      ...current,
+      [config.workerType]: current[config.workerType] + 1
+    }));
   };
 
   const adjustWorkers = (delta) => {
