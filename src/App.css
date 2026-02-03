@@ -113,18 +113,21 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(8, minmax(44px, 1fr));
+  grid-template-columns: repeat(8, 64px);
+  grid-auto-rows: 64px;
   gap: 6px;
   background: #e9d6b8;
   border: 2px solid #c9ab7a;
   border-radius: 16px;
   padding: 12px;
+  justify-content: center;
 }
 
 .cell {
   border: 2px solid #b69769;
   border-radius: 8px;
-  min-height: 54px;
+  width: 64px;
+  height: 64px;
   background: #f7f1e6;
   font-size: 12px;
   display: flex;
@@ -201,5 +204,6 @@
 
   .grid {
     order: 2;
+    grid-template-columns: repeat(4, 64px);
   }
 }
