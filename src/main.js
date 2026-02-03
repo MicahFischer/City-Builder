@@ -259,26 +259,38 @@ let zoomLevel = 1;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.4;
 
+const gridCenterIso = () => {
+  const center = (GRID_SIZE - 1) / 2;
+  return {
+    x: 0,
+    y: (center + center) * (TILE_HEIGHT / 2)
+  };
+};
+
 const isoToScreen = (col, row) => {
   const baseX = (col - row) * (TILE_WIDTH / 2);
   const baseY = (col + row) * (TILE_HEIGHT / 2);
+  const center = gridCenterIso();
+  const dx = baseX - center.x;
+  const dy = baseY - center.y;
   const cos = Math.cos(rotationAngle);
   const sin = Math.sin(rotationAngle);
-  const rotX = baseX * cos - baseY * sin;
-  const rotY = baseX * sin + baseY * cos;
+  const rotX = dx * cos - dy * sin;
+  const rotY = dx * sin + dy * cos;
   return {
-    x: rotX + GRID_ORIGIN.x,
-    y: rotY + GRID_ORIGIN.y
+    x: rotX + center.x + GRID_ORIGIN.x,
+    y: rotY + center.y + GRID_ORIGIN.y
   };
 };
 
 const screenToIso = (x, y) => {
-  const dx = x - GRID_ORIGIN.x;
-  const dy = y - GRID_ORIGIN.y;
+  const center = gridCenterIso();
+  const dx = x - GRID_ORIGIN.x - center.x;
+  const dy = y - GRID_ORIGIN.y - center.y;
   const cos = Math.cos(-rotationAngle);
   const sin = Math.sin(-rotationAngle);
-  const unrotX = dx * cos - dy * sin;
-  const unrotY = dx * sin + dy * cos;
+  const unrotX = dx * cos - dy * sin + center.x;
+  const unrotY = dx * sin + dy * cos + center.y;
   const colF =
     (unrotX / (TILE_WIDTH / 2) + unrotY / (TILE_HEIGHT / 2)) / 2;
   const rowF =
