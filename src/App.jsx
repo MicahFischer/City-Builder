@@ -160,9 +160,6 @@ export default function App() {
   const selectedWorkerType = selectedCell
     ? BUILDINGS[selectedCell.type].workerType
     : null;
-  const selectedAvailable = selectedWorkerType
-    ? availableWorkers[selectedWorkerType]
-    : 0;
   const selectedFull = selectedCell
     ? selectedCell.workers >= MAX_WORKERS_PER_BUILDING
     : false;
@@ -256,22 +253,14 @@ export default function App() {
                 {BUILDINGS[selectedCell.type].outputResource} per worker
               </div>
               <div className="selection-detail">
-                Available:{" "}
-                {selectedAvailable}
+                Hire cost: 20 gold + 20 wheat
               </div>
               <div className="selection-actions">
-                <button onClick={() => adjustWorkers(-1)}>-</button>
-                <button
-                  onClick={() => adjustWorkers(1)}
-                  disabled={selectedFull || selectedAvailable <= 0}
-                >
-                  Assign
-                </button>
                 <button
                   onClick={hireAndAssign}
                   disabled={selectedFull || !canAfford(resources, WORKER_COST)}
                 >
-                  Hire + Assign
+                  Assign
                 </button>
               </div>
             </div>
