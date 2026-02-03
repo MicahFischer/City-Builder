@@ -9,7 +9,7 @@ const BUILDINGS = {
     workerType: "farmer",
     outputResource: "wheat",
     outputPerWorker: 5,
-    cost: { wood: 30, stone: 20 },
+    cost: { wood: 30, stone: 30 },
     color: 0xf6f1c6
   },
   quarry: {
@@ -25,7 +25,7 @@ const BUILDINGS = {
     workerType: "miner",
     outputResource: "gold",
     outputPerWorker: 5,
-    cost: { wood: 40, stone: 40, wheat: 30 },
+    cost: { wood: 30, stone: 30 },
     color: 0xc5c1b8
   },
   lumberyard: {
@@ -33,7 +33,7 @@ const BUILDINGS = {
     workerType: "lumberjack",
     outputResource: "wood",
     outputPerWorker: 5,
-    cost: { wood: 40 },
+    cost: { stone: 30, wheat: 30 },
     color: 0xd8c9a7
   }
 };
