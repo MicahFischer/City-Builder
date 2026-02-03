@@ -236,6 +236,7 @@ const COLORS = {
 let graphics;
 let sceneRef;
 let workerTexts = [];
+let labelTexts = [];
 
 const isoToScreen = (col, row) => {
   return {
@@ -270,10 +271,16 @@ const clearWorkerTexts = () => {
   workerTexts = [];
 };
 
+const clearLabelTexts = () => {
+  labelTexts.forEach((text) => text.destroy());
+  labelTexts = [];
+};
+
 const drawGrid = () => {
   if (!graphics) return;
   graphics.clear();
   clearWorkerTexts();
+  clearLabelTexts();
 
   for (let row = 0; row < GRID_SIZE; row += 1) {
     for (let col = 0; col < GRID_SIZE; col += 1) {
@@ -284,6 +291,12 @@ const drawGrid = () => {
       const isSelected = state.selectedIndex === index;
       drawDiamond(x, y, fill, isSelected ? COLORS.selected : COLORS.outline);
       if (cell) {
+        const label = sceneRef.add.text(x - 10, y - 20, configLabel(cell.type), {
+          fontSize: "12px",
+          color: "#1f1a12",
+          fontStyle: "bold"
+        });
+        labelTexts.push(label);
         const text = sceneRef.add.text(x - 6, y - 8, `${cell.workers}`, {
           fontSize: "12px",
           color: "#1f1a12"
@@ -294,19 +307,29 @@ const drawGrid = () => {
   }
 };
 
+const configLabel = (type) => {
+  const label = BUILDINGS[type]?.label ?? "?";
+  return label.charAt(0).toUpperCase();
+};
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   width: 640,
   height: 520,
   parent: "game",
   backgroundColor: "#efe4d2",
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
   scene: {
     create() {
       sceneRef = this;
       graphics = this.add.graphics();
       drawGrid();
       this.input.on("pointerdown", (pointer) => {
-        const { col, row } = screenToIso(pointer.x, pointer.y);
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const { col, row } = screenToIso(worldPoint.x, worldPoint.y);
         if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) return;
         const index = row * GRID_SIZE + col;
         selectCell(index);
