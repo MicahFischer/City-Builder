@@ -1,4 +1,5 @@
-import Phaser from "phaser";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import "./style.css";
 
 const RESOURCES = ["wood", "stone", "wheat", "gold"];
@@ -10,11 +11,7 @@ const BUILDINGS = {
     outputResource: "wheat",
     outputPerWorker: 5,
     cost: { wood: 30, stone: 30 },
-    colors: {
-      top: 0xf6f1c6,
-      left: 0xe6dba9,
-      right: 0xd8ca8c
-    }
+    color: 0xf6f1c6
   },
   quarry: {
     label: "Quarry",
@@ -22,11 +19,7 @@ const BUILDINGS = {
     outputResource: "stone",
     outputPerWorker: 5,
     cost: { wood: 30, wheat: 30 },
-    colors: {
-      top: 0xd5d8dd,
-      left: 0xc3c7cf,
-      right: 0xb3b8c2
-    }
+    color: 0xd5d8dd
   },
   mine: {
     label: "Mine",
@@ -34,11 +27,7 @@ const BUILDINGS = {
     outputResource: "gold",
     outputPerWorker: 5,
     cost: { wood: 30, stone: 30 },
-    colors: {
-      top: 0xc5c1b8,
-      left: 0xb0aaa0,
-      right: 0x9e978c
-    }
+    color: 0xc5c1b8
   },
   lumberyard: {
     label: "Lumberyard",
@@ -46,11 +35,7 @@ const BUILDINGS = {
     outputResource: "wood",
     outputPerWorker: 5,
     cost: { stone: 30, wheat: 30 },
-    colors: {
-      top: 0xd8c9a7,
-      left: 0xc7b58f,
-      right: 0xb8a67f
-    }
+    color: 0xd8c9a7
   }
 };
 
@@ -168,7 +153,7 @@ const renderBuildPanel = () => {
         .map(([res, value]) => `${value} ${res}`)
         .join(", ");
       return `
-        <button class="tile-button" data-build="${key}" $${
+        <button class="tile-button" data-build="${key}" ${
           affordable ? "" : "disabled"
         }>
           <span>${config.label}</span>
@@ -224,7 +209,7 @@ const renderAll = () => {
   renderResources();
   renderBuildPanel();
   renderSelection();
-  drawGrid();
+  updateTiles();
 };
 
 let nextCycleAt = Date.now() + CYCLE_MS;
@@ -240,296 +225,164 @@ setInterval(() => {
   cycleEl.textContent = `Next cycle in: ${(remaining / 1000).toFixed(1)}s`;
 }, 200);
 
-const TILE_WIDTH = 72;
-const TILE_HEIGHT = 36;
-const COLORS = {
-  empty: 0xf7f1e6,
-  outline: 0xb69769,
-  selected: 0x81572a
-};
+const gameEl = document.getElementById("game");
+const tooltip = document.createElement("div");
+tooltip.className = "tooltip";
+tooltip.style.position = "absolute";
+tooltip.style.pointerEvents = "none";
+tooltip.style.display = "none";
+const gameWrap = gameEl.parentElement;
+if (gameWrap) {
+  gameWrap.style.position = "relative";
+  gameWrap.appendChild(tooltip);
+}
 
-let graphics;
-let sceneRef;
-let gridLayer;
-let workerTexts = [];
-let labelTexts = [];
-let rotationAngle = 0;
-let tooltipText;
-let zoomLevel = 1;
-const ZOOM_MIN = 0.7;
-const ZOOM_MAX = 1.4;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xefe4d2);
 
-const gridCenterIso = () => {
-  const center = (GRID_SIZE - 1) / 2;
-  return {
-    x: 0,
-    y: (center + center) * (TILE_HEIGHT / 2)
-  };
-};
+const camera = new THREE.PerspectiveCamera(
+  45,
+  gameEl.clientWidth / gameEl.clientHeight,
+  0.1,
+  1000
+);
 
-const isoToLocal = (col, row) => {
-  const center = gridCenterIso();
-  return {
-    x: (col - row) * (TILE_WIDTH / 2) - center.x,
-    y: (col + row) * (TILE_HEIGHT / 2) - center.y
-  };
-};
+camera.position.set(8, 10, 10);
 
-const screenToIso = (x, y) => {
-  const center = gridCenterIso();
-  const unrotX = x + center.x;
-  const unrotY = y + center.y;
-  const colF =
-    (unrotX / (TILE_WIDTH / 2) + unrotY / (TILE_HEIGHT / 2)) / 2;
-  const rowF =
-    (unrotY / (TILE_HEIGHT / 2) - unrotX / (TILE_WIDTH / 2)) / 2;
-  return { col: Math.round(colF), row: Math.round(rowF) };
-};
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(gameEl.clientWidth, gameEl.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+gameEl.appendChild(renderer.domElement);
 
-const pointInDiamond = (px, py, cx, cy) => {
-  const dx = Math.abs(px - cx);
-  const dy = Math.abs(py - cy);
-  return dx / (TILE_WIDTH / 2) + dy / (TILE_HEIGHT / 2) <= 1;
-};
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 6;
+controls.maxDistance = 20;
+controls.target.set(0, 0, 0);
+controls.update();
 
-const pickCell = (x, y) => {
-  const { col, row } = screenToIso(x, y);
-  const candidates = [
-    { col, row },
-    { col: col - 1, row },
-    { col: col + 1, row },
-    { col, row: row - 1 },
-    { col, row: row + 1 }
-  ];
+const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+scene.add(ambient);
+const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+dir.position.set(10, 20, 10);
+scene.add(dir);
 
-  for (const candidate of candidates) {
-    if (
-      candidate.col < 0 ||
-      candidate.row < 0 ||
-      candidate.col >= GRID_SIZE ||
-      candidate.row >= GRID_SIZE
-    ) {
-      continue;
-    }
-    const center = isoToLocal(candidate.col, candidate.row);
-    if (pointInDiamond(x, y, center.x, center.y)) {
-      return candidate;
-    }
+const gridGroup = new THREE.Group();
+scene.add(gridGroup);
+
+const tileSize = 1;
+const tileGeom = new THREE.PlaneGeometry(tileSize, tileSize);
+
+tileGeom.rotateX(-Math.PI / 2);
+
+const tileMeshes = [];
+const buildingMeshes = [];
+
+for (let row = 0; row < GRID_SIZE; row += 1) {
+  for (let col = 0; col < GRID_SIZE; col += 1) {
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xf7f1e6,
+      roughness: 0.9,
+      metalness: 0.0
+    });
+    const mesh = new THREE.Mesh(tileGeom, material);
+    mesh.position.set(
+      (col - (GRID_SIZE - 1) / 2) * tileSize,
+      0,
+      (row - (GRID_SIZE - 1) / 2) * tileSize
+    );
+    mesh.userData = { index: row * GRID_SIZE + col };
+    gridGroup.add(mesh);
+    tileMeshes.push(mesh);
+
+    const building = new THREE.Mesh(
+      new THREE.BoxGeometry(tileSize * 0.6, tileSize * 0.6, tileSize * 0.6),
+      new THREE.MeshStandardMaterial({ color: 0xcccccc })
+    );
+    building.position.copy(mesh.position);
+    building.position.y = tileSize * 0.3;
+    building.visible = false;
+    gridGroup.add(building);
+    buildingMeshes.push(building);
   }
+}
 
-  return { col, row };
-};
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
 
-const drawDiamond = (x, y, fill, stroke, thickness = 2) => {
-  graphics.fillStyle(fill, 1);
-  graphics.beginPath();
-  graphics.moveTo(x, y - TILE_HEIGHT / 2);
-  graphics.lineTo(x + TILE_WIDTH / 2, y);
-  graphics.lineTo(x, y + TILE_HEIGHT / 2);
-  graphics.lineTo(x - TILE_WIDTH / 2, y);
-  graphics.closePath();
-  graphics.fillPath();
-  graphics.lineStyle(thickness, stroke, 1);
-  graphics.strokePath();
-};
+const updateTiles = () => {
+  tileMeshes.forEach((mesh) => {
+    mesh.material.color.set(0xf7f1e6);
+  });
+  buildingMeshes.forEach((mesh) => {
+    mesh.visible = false;
+  });
 
-const drawIsoBlock = (x, y, colors, stroke) => {
-  const halfW = TILE_WIDTH / 2;
-  const halfH = TILE_HEIGHT / 2;
-  const height = TILE_HEIGHT;
+  state.grid.forEach((cell, index) => {
+    if (!cell) return;
+    const config = BUILDINGS[cell.type];
+    const building = buildingMeshes[index];
+    building.material.color.set(config.color);
+    building.visible = true;
+  });
 
-  // Top
-  graphics.fillStyle(colors.top, 1);
-  graphics.beginPath();
-  graphics.moveTo(x, y - halfH - height);
-  graphics.lineTo(x + halfW, y - height);
-  graphics.lineTo(x, y + halfH - height);
-  graphics.lineTo(x - halfW, y - height);
-  graphics.closePath();
-  graphics.fillPath();
-
-  // Left
-  graphics.fillStyle(colors.left, 1);
-  graphics.beginPath();
-  graphics.moveTo(x - halfW, y - height);
-  graphics.lineTo(x, y + halfH - height);
-  graphics.lineTo(x, y + halfH);
-  graphics.lineTo(x - halfW, y);
-  graphics.closePath();
-  graphics.fillPath();
-
-  // Right
-  graphics.fillStyle(colors.right, 1);
-  graphics.beginPath();
-  graphics.moveTo(x + halfW, y - height);
-  graphics.lineTo(x, y + halfH - height);
-  graphics.lineTo(x, y + halfH);
-  graphics.lineTo(x + halfW, y);
-  graphics.closePath();
-  graphics.fillPath();
-
-  // Outline top
-  graphics.lineStyle(2, stroke, 1);
-  graphics.beginPath();
-  graphics.moveTo(x, y - halfH - height);
-  graphics.lineTo(x + halfW, y - height);
-  graphics.lineTo(x, y + halfH - height);
-  graphics.lineTo(x - halfW, y - height);
-  graphics.closePath();
-  graphics.strokePath();
-};
-
-const clearWorkerTexts = () => {
-  workerTexts.forEach((text) => text.destroy());
-  workerTexts = [];
-};
-
-const clearLabelTexts = () => {
-  labelTexts.forEach((text) => text.destroy());
-  labelTexts = [];
-};
-
-const drawGrid = () => {
-  if (!graphics) return;
-  graphics.clear();
-  clearWorkerTexts();
-  clearLabelTexts();
-
-  for (let row = 0; row < GRID_SIZE; row += 1) {
-    for (let col = 0; col < GRID_SIZE; col += 1) {
-      const index = row * GRID_SIZE + col;
-      const cell = state.grid[index];
-      const { x, y } = isoToLocal(col, row);
-      const isSelected = state.selectedIndex === index;
-      drawDiamond(
-        x,
-        y,
-        COLORS.empty,
-        isSelected ? COLORS.selected : COLORS.outline
-      );
-      if (cell) {
-        const colors = BUILDINGS[cell.type].colors;
-        drawIsoBlock(x, y, colors, COLORS.outline);
-        const label = sceneRef.add.text(x - 8, y - 28, configLabel(cell.type), {
-          fontSize: "12px",
-          color: "#1f1a12",
-          fontStyle: "bold"
-        });
-        gridLayer.add(label);
-        labelTexts.push(label);
-        const text = sceneRef.add.text(x - 6, y - 8, `${cell.workers}`, {
-          fontSize: "12px",
-          color: "#1f1a12"
-        });
-        gridLayer.add(text);
-        workerTexts.push(text);
-      }
-    }
+  if (state.selectedIndex !== null) {
+    tileMeshes[state.selectedIndex].material.color.set(0xf0d6a6);
   }
 };
 
-const configLabel = (type) => {
-  const label = BUILDINGS[type]?.label ?? "?";
-  return label.charAt(0).toUpperCase();
+const onPointerMove = (event) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(tileMeshes);
+  if (intersects.length === 0) {
+    tooltip.style.display = "none";
+    return;
+  }
+  const index = intersects[0].object.userData.index;
+  const cell = state.grid[index];
+  if (!cell) {
+    tooltip.style.display = "none";
+    return;
+  }
+  const config = BUILDINGS[cell.type];
+  tooltip.textContent = `${config.label} (${cell.workers}/${MAX_WORKERS_PER_BUILDING})`;
+  tooltip.style.left = `${event.clientX - rect.left + 12}px`;
+  tooltip.style.top = `${event.clientY - rect.top + 12}px`;
+  tooltip.style.display = "block";
 };
 
-const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  width: 720,
-  height: 580,
-  parent: "game",
-  backgroundColor: "#efe4d2",
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
-  scene: {
-    create() {
-      sceneRef = this;
-      const canvasCenterX = this.cameras.main.width / 2;
-      const canvasCenterY = this.cameras.main.height / 2;
-      gridLayer = this.add.container(canvasCenterX, canvasCenterY);
-      graphics = this.add.graphics();
-      gridLayer.add(graphics);
-      tooltipText = this.add
-        .text(0, 0, "", {
-          fontSize: "12px",
-          color: "#1f1a12",
-          backgroundColor: "#fff7ea",
-          padding: { left: 6, right: 6, top: 4, bottom: 4 }
-        })
-        .setDepth(10)
-        .setVisible(false);
-      drawGrid();
-      let isDragging = false;
-      let dragStartX = 0;
-      let lastX = 0;
-      const dragThreshold = 6;
-      const rotationSpeed = 0.005;
+const onPointerDown = (event) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(tileMeshes);
+  if (intersects.length === 0) return;
+  const index = intersects[0].object.userData.index;
+  selectCell(index);
+};
 
-      this.input.on("pointerdown", (pointer) => {
-        isDragging = false;
-        dragStartX = pointer.x;
-        lastX = pointer.x;
-      });
+renderer.domElement.addEventListener("pointermove", onPointerMove);
+renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
-      this.input.on("pointermove", (pointer) => {
-        if (!pointer.isDown) return;
-        const dx = pointer.x - dragStartX;
-        if (!isDragging && Math.abs(dx) > dragThreshold) {
-          isDragging = true;
-        }
-        if (isDragging) {
-          const delta = pointer.x - lastX;
-          rotationAngle += delta * rotationSpeed;
-          gridLayer.rotation = rotationAngle;
-          lastX = pointer.x;
-          drawGrid();
-        }
-      });
+const onResize = () => {
+  const width = gameEl.clientWidth;
+  const height = gameEl.clientHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+};
 
-      this.input.on("pointermove", (pointer) => {
-        if (isDragging) {
-          tooltipText.setVisible(false);
-          return;
-        }
-        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-        const local = gridLayer.getLocalPoint(worldPoint.x, worldPoint.y);
-        const { col, row } = pickCell(local.x, local.y);
-        if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) {
-          tooltipText.setVisible(false);
-          return;
-        }
-        const index = row * GRID_SIZE + col;
-        const cell = state.grid[index];
-        if (!cell) {
-          tooltipText.setVisible(false);
-          return;
-        }
-        const config = BUILDINGS[cell.type];
-        tooltipText
-          .setText(`${config.label} (${cell.workers}/${MAX_WORKERS_PER_BUILDING})`)
-          .setPosition(pointer.x + 14, pointer.y + 14)
-          .setVisible(true);
-      });
+window.addEventListener("resize", onResize);
 
-      this.input.on("pointerup", (pointer) => {
-        if (isDragging) return;
-        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-        const local = gridLayer.getLocalPoint(worldPoint.x, worldPoint.y);
-        const { col, row } = pickCell(local.x, local.y);
-        if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) return;
-        const index = row * GRID_SIZE + col;
-        selectCell(index);
-      });
-
-      this.input.on("wheel", (_pointer, _over, _dx, dy) => {
-        const direction = dy > 0 ? -1 : 1;
-        zoomLevel = Phaser.Math.Clamp(zoomLevel + direction * 0.1, ZOOM_MIN, ZOOM_MAX);
-        this.cameras.main.setZoom(zoomLevel);
-      });
-    }
-  }
-});
+const animate = () => {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+};
 
 renderAll();
+animate();

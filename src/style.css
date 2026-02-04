@@ -160,6 +160,15 @@ button {
   cursor: pointer;
 }
 
+.tooltip {
+  background: #fff7ea;
+  border: 1px solid #c9ab7a;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #1f1a12;
+}
+
 @media (max-width: 1000px) {
   .layout {
     grid-template-columns: 1fr;
