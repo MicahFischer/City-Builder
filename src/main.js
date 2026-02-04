@@ -242,7 +242,6 @@ setInterval(() => {
 
 const TILE_WIDTH = 72;
 const TILE_HEIGHT = 36;
-const GRID_ORIGIN = { x: 360, y: 120 };
 const COLORS = {
   empty: 0xf7f1e6,
   outline: 0xb69769,
@@ -278,10 +277,8 @@ const isoToLocal = (col, row) => {
 
 const screenToIso = (x, y) => {
   const center = gridCenterIso();
-  const dx = x + center.x;
-  const dy = y + center.y;
-  const unrotX = dx;
-  const unrotY = dy;
+  const unrotX = x + center.x;
+  const unrotY = y + center.y;
   const colF =
     (unrotX / (TILE_WIDTH / 2) + unrotY / (TILE_HEIGHT / 2)) / 2;
   const rowF =
@@ -449,7 +446,9 @@ const game = new Phaser.Game({
   scene: {
     create() {
       sceneRef = this;
-      gridLayer = this.add.container(GRID_ORIGIN.x, GRID_ORIGIN.y);
+      const canvasCenterX = this.cameras.main.width / 2;
+      const canvasCenterY = this.cameras.main.height / 2;
+      gridLayer = this.add.container(canvasCenterX, canvasCenterY);
       graphics = this.add.graphics();
       gridLayer.add(graphics);
       tooltipText = this.add
