@@ -251,6 +251,7 @@ const COLORS = {
 
 let graphics;
 let sceneRef;
+let gridLayer;
 let workerTexts = [];
 let labelTexts = [];
 let rotationAngle = 0;
@@ -267,30 +268,20 @@ const gridCenterIso = () => {
   };
 };
 
-const isoToScreen = (col, row) => {
-  const baseX = (col - row) * (TILE_WIDTH / 2);
-  const baseY = (col + row) * (TILE_HEIGHT / 2);
+const isoToLocal = (col, row) => {
   const center = gridCenterIso();
-  const dx = baseX - center.x;
-  const dy = baseY - center.y;
-  const cos = Math.cos(rotationAngle);
-  const sin = Math.sin(rotationAngle);
-  const rotX = dx * cos - dy * sin;
-  const rotY = dx * sin + dy * cos;
   return {
-    x: rotX + center.x + GRID_ORIGIN.x,
-    y: rotY + center.y + GRID_ORIGIN.y
+    x: (col - row) * (TILE_WIDTH / 2) - center.x,
+    y: (col + row) * (TILE_HEIGHT / 2) - center.y
   };
 };
 
 const screenToIso = (x, y) => {
   const center = gridCenterIso();
-  const dx = x - GRID_ORIGIN.x - center.x;
-  const dy = y - GRID_ORIGIN.y - center.y;
-  const cos = Math.cos(-rotationAngle);
-  const sin = Math.sin(-rotationAngle);
-  const unrotX = dx * cos - dy * sin + center.x;
-  const unrotY = dx * sin + dy * cos + center.y;
+  const dx = x + center.x;
+  const dy = y + center.y;
+  const unrotX = dx;
+  const unrotY = dy;
   const colF =
     (unrotX / (TILE_WIDTH / 2) + unrotY / (TILE_HEIGHT / 2)) / 2;
   const rowF =
@@ -323,7 +314,7 @@ const pickCell = (x, y) => {
     ) {
       continue;
     }
-    const center = isoToScreen(candidate.col, candidate.row);
+    const center = isoToLocal(candidate.col, candidate.row);
     if (pointInDiamond(x, y, center.x, center.y)) {
       return candidate;
     }
@@ -411,7 +402,7 @@ const drawGrid = () => {
     for (let col = 0; col < GRID_SIZE; col += 1) {
       const index = row * GRID_SIZE + col;
       const cell = state.grid[index];
-      const { x, y } = isoToScreen(col, row);
+      const { x, y } = isoToLocal(col, row);
       const isSelected = state.selectedIndex === index;
       drawDiamond(
         x,
@@ -427,11 +418,13 @@ const drawGrid = () => {
           color: "#1f1a12",
           fontStyle: "bold"
         });
+        gridLayer.add(label);
         labelTexts.push(label);
         const text = sceneRef.add.text(x - 6, y - 8, `${cell.workers}`, {
           fontSize: "12px",
           color: "#1f1a12"
         });
+        gridLayer.add(text);
         workerTexts.push(text);
       }
     }
@@ -456,7 +449,9 @@ const game = new Phaser.Game({
   scene: {
     create() {
       sceneRef = this;
+      gridLayer = this.add.container(GRID_ORIGIN.x, GRID_ORIGIN.y);
       graphics = this.add.graphics();
+      gridLayer.add(graphics);
       tooltipText = this.add
         .text(0, 0, "", {
           fontSize: "12px",
@@ -488,6 +483,7 @@ const game = new Phaser.Game({
         if (isDragging) {
           const delta = pointer.x - lastX;
           rotationAngle += delta * rotationSpeed;
+          gridLayer.rotation = rotationAngle;
           lastX = pointer.x;
           drawGrid();
         }
@@ -499,7 +495,8 @@ const game = new Phaser.Game({
           return;
         }
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-        const { col, row } = pickCell(worldPoint.x, worldPoint.y);
+        const local = gridLayer.getLocalPoint(worldPoint.x, worldPoint.y);
+        const { col, row } = pickCell(local.x, local.y);
         if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) {
           tooltipText.setVisible(false);
           return;
@@ -520,7 +517,8 @@ const game = new Phaser.Game({
       this.input.on("pointerup", (pointer) => {
         if (isDragging) return;
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-        const { col, row } = pickCell(worldPoint.x, worldPoint.y);
+        const local = gridLayer.getLocalPoint(worldPoint.x, worldPoint.y);
+        const { col, row } = pickCell(local.x, local.y);
         if (col < 0 || row < 0 || col >= GRID_SIZE || row >= GRID_SIZE) return;
         const index = row * GRID_SIZE + col;
         selectCell(index);
